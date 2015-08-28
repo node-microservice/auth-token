@@ -1,0 +1,28 @@
+{
+  "name": "@microservice/auth-token",
+  "version": "1.0.0",
+  "description": "Microservice authentication tokens",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "npm prune",
+    "lint": "jscs . && jshint .",
+    "test": "npm run lint && mocha spec.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/node-microservice/auth-token"
+  },
+  "author": "Doug Moscrop <doug.moscrop@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "crypto": "0.0.3",
+    "jwt-simple": "^0.3.0",
+    "lodash": "^3.10.1",
+    "object-assign": "^4.0.1"
+  },
+  "devDependencies": {
+    "jscs": "^2.1.1",
+    "jshint": "^2.8.0",
+    "mocha": "^2.3.0"
+  }
+}
