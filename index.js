@@ -2,12 +2,10 @@ var jwt = require('jwt-simple'),
 	crypto = require('crypto'),
 	objectAssign = require('object-assign');
 
-function createToken(algorithm, secret, claims) {
+function createToken(algorithm, secret, claims, properties) {
 	if (secret === undefined) {
 		throw new Error('a secret is required to create a token');
 	}
-
-	algorithm = algorithm || 'HS256';
 
 	var proto = {
 		toString: function() {
@@ -33,50 +31,84 @@ function createToken(algorithm, secret, claims) {
 		}
 	});
 
-	objectAssign(token, claims);
+	if (properties && typeof properties === 'object') {
+		Object.keys(properties).forEach(function(key) {
+			var claim = properties[key];
+
+			if (claim === key) {
+				return;
+			}
+
+			Object.defineProperty(token, key, {
+				get: function() {
+					return this[claim];
+				},
+				set: function(value) {
+					this[claim] = value;
+				}
+			});
+		});
+	}
+
+	if (claims && typeof claims === 'object') {
+		objectAssign(token, claims);
+	}
 
 	return token;
 }
 
-function Token(config) {
-	config = config || {};
+function Token(defaults) {
+	return {
+		alg: function(algorithm) {
+			var config = objectAssign({}, defaults, {algorithm: algorithm});
+			return Token(config);
+		},
+		secret: function(secret) {
+			var config = objectAssign({}, defaults, {secret: secret});
+			return Token(config);
+		},
+		properties: function(properties) {
+			var config = objectAssign({}, defaults, {properties: properties});
+			return Token(config);
+		},
+		create: function() {
+			var args = [].slice.call(arguments);
 
-	if (this instanceof Token) {
-		var args = [].slice.call(arguments, 1);
+			var claims = args.pop() || {};
+			var config = args.pop() || {};
 
-		var claims = args.pop() || {};
-		var secret = args.pop() || config.secret;
-		var algorithm = args.pop() || config.algorithm;
-
-		if (typeof claims === 'string') {
-			try {
-				claims = jwt.decode(claims, secret, false, algorithm);
-			} catch (error) {
-				claims = {};
+			if (typeof config === 'string') {
+				config = {
+					secret: config
+				};
 			}
+
+			if (args.length > 0) {
+				config.algorithm = args.pop();
+			}
+
+			var secret = config.secret || defaults.secret;
+			var algorithm = config.algorithm || defaults.algorithm;
+			var properties = config.properties || defaults.properties;
+
+			if (typeof claims === 'string') {
+				try {
+					claims = jwt.decode(claims, secret, false, algorithm);
+				} catch (e) {
+					return null;
+				}
+			}
+
+			return createToken(algorithm, secret, claims, properties);
+		},
+		decode: function() {
+			var token = this.create.apply(this, arguments);
+
+			return token ? this.create(token) : null;
 		}
-
-		return createToken(algorithm, secret, claims);
-	} else {
-		var builder = Token.bind(Token, config);
-
-		builder.alg = function(algorithm) {
-			config = objectAssign({}, config, {algorithm: algorithm});
-			return Token(config);
-		};
-
-		builder.secret = function(secret) {
-			config = objectAssign({}, config, {secret: secret});
-			return Token(config);
-		};
-
-		builder.create = function() {
-			var Factory = Token.bind.apply(Token, [Token, config].concat([].slice.call(arguments)));
-			return new Factory();
-		};
-
-		return builder;
-	}
+	};
 }
 
-module.exports = Token();
+module.exports = Token({
+	algorithm: 'HS256'
+});

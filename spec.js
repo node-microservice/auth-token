@@ -2,90 +2,74 @@ var assert = require('assert'),
 	Token = require('./');
 
 describe('Token', function() {
-	var token;
 
-	describe('new with (alg, sec, claims)', function() {
-		before(function() {
-			token = new Token('HS512', 'secret', {foo: 'bar'});
-		});
+	it('can build multiple configurations', function() {
+		var A = Token.alg('HS512').secret('another');
+		var B = Token.alg('HS256').secret('secret');
 
-		it('has the right alg', function() {
-			assert.equal(token.alg, 'HS512');
-		});
-
-		it('has the right claims', function() {
-			assert.equal(token.foo, 'bar');
-		});
-
-		it('can be decoded with correct secret and alg', function() {
-			var decoded = new Token('HS512', 'secret', token.toString());
-			assert.equal(decoded.foo, token.foo);
-		});
-
-		it('fails to be decoded with wrong alg', function() {
-			var decoded = new Token('HS256', 'secret', token.toString());
-			assert.equal(decoded.foo, undefined);
-		});
-
-		it('fails to be decoded with wrong secret', function() {
-			var decoded = new Token('HS512', 'wrong_secret', token.toString());
-			assert.equal(decoded.foo, undefined);
-		});
+		assert.equal(B.create().alg, 'HS256');
+		assert.equal(A.create().alg, 'HS512');
 	});
 
-	describe('new with (sec, claims)', function() {
-		before(function() {
-			token = new Token('secret', {foo: 'bar'});
+	it('can define claims and properties', function() {
+		var Factory = Token.secret('foo').properties({
+			tenantId: 'aud',
+			iss: 'iss'
 		});
 
-		it('has the right alg', function() {
-			assert.equal(token.alg, 'HS256');
+		var token = Factory.create({
+			aud: 'start',
+			iss: 'untouched'
 		});
 
-		it('has the right claims', function() {
-			assert.equal(token.foo, 'bar');
-		});
+		assert.equal(token.iss, 'untouched');
+		assert.equal(token.aud, 'start');
+		assert.equal(token.tenantId, 'start');
+		assert.equal(JSON.stringify(token), '{"aud":"start","iss":"untouched"}');
+
+		token.tenantId = 'finish';
+
+		var decoded = Factory.create(token.toString());
+
+		assert.equal(decoded.iss, 'untouched');
+		assert.equal(decoded.aud, 'finish');
+		assert.equal(decoded.tenantId, 'finish');
+		assert.equal(JSON.stringify(token), '{"aud":"finish","iss":"untouched"}');
 	});
 
-	describe('create with (alg, sec, claims)', function() {
-		before(function() {
-			token = Token.create('HS512', 'secret', {foo: 'bar'});
+	it('can decode a token it creates', function() {
+		var Factory = Token.secret('secret');
+
+		var token = Factory.create({
+			foo: 'bar'
 		});
 
-		it('has the right alg', function() {
-			assert.equal(token.alg, 'HS512');
-		});
+		var other = Factory.create(token.toString());
 
-		it('has the right claims', function() {
-			assert.equal(token.foo, 'bar');
-		});
+		assert.equal(token.foo, other.foo);
 	});
 
-	describe('create with (sec, claims)', function() {
+	describe('decoding a token with a different secret', function() {
+		var token, Factory;
+
 		before(function() {
-			token = Token.create('HS512', 'secret', {foo: 'bar'});
+			Factory = Token.secret('secret');
+
+			token = Token.create('other', {
+				foo: 'bar'
+			}).toString();
 		});
 
-		it('has the right alg', function() {
-			assert.equal(token.alg, 'HS512');
+		it('works with the right secret', function() {
+			var decoded = Factory.decode('other', token);
+
+			assert.equal(decoded.foo, 'bar');
 		});
 
-		it('has the right claims', function() {
-			assert.equal(token.foo, 'bar');
-		});
-	});
+		it('fails with the wrong secret', function() {
+			var decoded = Factory.decode('wrong', token);
 
-	describe('preconfigured with secret', function() {
-		var TokenWithSecret = Token.secret('secret');
-
-		describe('new', function() {
-			before(function() {
-				token = new TokenWithSecret({foo: 'bar'});
-			});
-
-			it('has the right claims', function() {
-				assert.equal(token.foo, 'bar');
-			});
+			assert.equal(decoded, null);
 		});
 	});
 });
