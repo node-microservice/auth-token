@@ -1,6 +1,6 @@
 {
   "name": "@microservice/auth-token",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Microservice authentication tokens",
   "main": "index.js",
   "scripts": {
@@ -15,7 +15,6 @@
   "author": "Doug Moscrop <doug.moscrop@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "crypto": "0.0.3",
     "jwt-simple": "^0.3.0",
     "object-assign": "^4.0.1"
   },
